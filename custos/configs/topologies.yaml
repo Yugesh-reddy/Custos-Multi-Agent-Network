@@ -1,0 +1,57 @@
+# Network Topology Definitions
+# Defines which agents can communicate with which in each topology
+
+topologies:
+  linear_chain:
+    description: "Sequential pipeline - attack must propagate step by step"
+    adjacency:
+      planner:
+        - researcher
+      researcher:
+        - executor
+      executor:
+        - validator
+      validator: []
+    entry_points:
+      - planner
+
+  star:
+    description: "Hub-and-spoke - planner is central hub, single point of failure"
+    adjacency:
+      planner:
+        - researcher
+        - executor
+        - validator
+      researcher:
+        - planner
+      executor:
+        - planner
+      validator:
+        - planner
+    entry_points:
+      - planner
+      - researcher
+
+  mesh:
+    description: "Fully connected - any agent can message any other, hardest to defend"
+    adjacency:
+      planner:
+        - researcher
+        - executor
+        - validator
+      researcher:
+        - planner
+        - executor
+        - validator
+      executor:
+        - planner
+        - researcher
+        - validator
+      validator:
+        - planner
+        - researcher
+        - executor
+    entry_points:
+      - planner
+      - researcher
+      - executor

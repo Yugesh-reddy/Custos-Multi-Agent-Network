@@ -1,0 +1,72 @@
+# LLM Model Registry
+# Workers: 3 model families (Meta, Alibaba, OpenAI) - all free or near-free
+# Sentinel: Anthropic Claude Sonnet 4.6 via AWS Bedrock
+# Red Team: OpenAI GPT-5.1 via Azure OpenAI
+
+models:
+  # --- Free: Ollama (local, unlimited) ---
+  llama:
+    type: ollama
+    model: "llama3.1:8b"
+    base_url: "http://localhost:11434/v1"
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+
+  qwen:
+    type: ollama
+    model: "qwen3:8b"
+    base_url: "http://localhost:11434/v1"
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+
+  # --- Azure OpenAI (student credits) ---
+  gpt5.1:
+    type: azure
+    model: "gpt-5.1"
+    deployment: "gpt-5.1"
+    cost_per_1k_input: 0.005
+    cost_per_1k_output: 0.015
+
+  gpt4o:
+    type: azure
+    model: "gpt-4o"
+    deployment: "gpt-4o"
+    cost_per_1k_input: 0.0025
+    cost_per_1k_output: 0.01
+
+  gpt4o-mini:
+    type: azure
+    model: "gpt-4o-mini"
+    deployment: "gpt-4o-mini"
+    cost_per_1k_input: 0.00015
+    cost_per_1k_output: 0.0006
+
+  # --- AWS Bedrock (credits) ---
+  sonnet:
+    type: bedrock
+    model: "anthropic.claude-sonnet-4-6-20260514-v1:0"
+    region: "us-east-1"
+    cost_per_1k_input: 0.003
+    cost_per_1k_output: 0.015
+
+# Role assignments
+roles:
+  workers:
+    configs:
+      - llama
+      - qwen
+      - gpt4o-mini
+
+  sentinel:
+    main: sonnet
+    ablation:
+      - llama
+      - gpt4o-mini
+
+  red_team:
+    main: gpt5.1
+    ablation:
+      - gpt4o
+
+  development:
+    default: llama

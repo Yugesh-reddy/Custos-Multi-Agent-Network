@@ -1,0 +1,53 @@
+# Default Hyperparameters & Configuration
+
+# Innate immunity layer
+innate:
+  block_threshold: 0.8
+  flag_threshold: 0.4
+  max_instruction_density: 0.3
+  max_message_length_ratio: 3.0
+  score_max_weight: 0.7
+  score_avg_weight: 0.3
+  base64_max_candidates: 50
+
+# Adaptive immunity layer
+adaptive:
+  top_k: 4
+  initial_alpha: 1.0
+  initial_beta: 1.0
+  antibody_maturity_threshold: 20
+  evolved_initial_alpha: 2.0
+  evolved_initial_beta: 1.0
+  evolved_default_threshold: 0.3
+
+# Quarantine controller
+quarantine:
+  enhanced_monitoring_window: 10
+  rollback_steps: 2
+
+# Co-evolution
+coevolution:
+  num_generations: 50
+  attacks_per_generation: 10
+  checkpoint_interval: 10
+  novel_payload_temperature: 0.9
+  max_failed_payloads_context: 5
+
+# Thompson Sampling initial priors (for red team strategies)
+red_team:
+  initial_alpha: 1.0
+  initial_beta: 1.0
+
+# Experiments
+experiments:
+  num_trials: 10
+  max_steps_per_task: 20
+  benign_task_target_completion: 0.90
+  helpfulness_retention_target: 0.85
+
+# LLM defaults
+llm:
+  max_tokens: 1024
+  temperature: 0.7
+  max_retries: 3
+  retry_base_delay: 1.0

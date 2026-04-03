@@ -29,6 +29,7 @@ from custos.evaluation.baselines import (
 )
 from custos.evaluation.metrics import (
     compute_containment_metrics,
+    compute_detection_by_attack_type,
     compute_detection_metrics,
     compute_helpfulness_retention,
 )
@@ -200,6 +201,7 @@ def run_single_experiment(
     # Compute metrics
     detection = compute_detection_metrics(attack_results)
     containment = compute_containment_metrics(attack_results)
+    per_attack = compute_detection_by_attack_type(attack_results)
 
     experiment_result = {
         "run_id": run_id,
@@ -209,6 +211,7 @@ def run_single_experiment(
         "benign_completion_rate": completion_rate,
         "detection_metrics": detection,
         "containment_metrics": containment,
+        "per_attack_type": per_attack,
         "total_benign_tasks": len(benign_results),
         "total_attack_trials": len(attack_results),
         "llm_cost": llm.get_cost_report(),

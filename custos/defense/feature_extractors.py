@@ -62,23 +62,90 @@ class FeatureExtractor:
         return self._semantic_coherence_keywords(content, role)
 
     def _semantic_coherence_keywords(self, content: str, role: str) -> float:
-        """Keyword-based semantic coherence (lightweight fallback)."""
-        role_keywords = {
-            "planner": {"plan", "step", "subtask", "assign", "decompose", "sequence", "dependency"},
-            "researcher": {"found", "research", "source", "data", "evidence", "findings", "summary"},
-            "executor": {"executed", "result", "output", "code", "implemented", "created", "response"},
-            "validator": {"verified", "correct", "issue", "pass", "fail", "quality", "review"},
+        """Keyword-based semantic coherence with weighted importance.
+
+        Three signals are combined:
+        1. Role keyword overlap (inverse: fewer matches → higher anomaly).
+        2. Cross-role confusion (content matches another role better).
+        3. Message length anomaly relative to role expectations.
+        """
+        # Expanded role vocabularies with importance weights (high=2, normal=1)
+        role_keywords: Dict[str, Dict[str, int]] = {
+            "planner": {
+                "plan": 2, "step": 2, "subtask": 2, "assign": 2,
+                "decompose": 2, "sequence": 1, "dependency": 1,
+                "phase": 1, "breakdown": 1, "prioritize": 1,
+                "orchestrate": 1, "schedule": 1, "delegate": 1,
+                "objective": 1, "workflow": 1, "milestone": 1,
+            },
+            "researcher": {
+                "found": 2, "research": 2, "source": 2, "data": 1,
+                "evidence": 2, "findings": 2, "summary": 1,
+                "analysis": 1, "literature": 1, "study": 1,
+                "reference": 1, "cited": 1, "methodology": 1,
+                "hypothesis": 1, "survey": 1, "reviewed": 1,
+            },
+            "executor": {
+                "executed": 2, "result": 1, "output": 1, "code": 2,
+                "implemented": 2, "created": 1, "response": 1,
+                "compiled": 1, "deployed": 1, "built": 1,
+                "installed": 1, "configured": 1, "ran": 1,
+                "function": 1, "script": 1, "return": 1,
+            },
+            "validator": {
+                "verified": 2, "correct": 1, "issue": 2, "pass": 1,
+                "fail": 2, "quality": 2, "review": 2,
+                "approved": 1, "rejected": 1, "compliant": 1,
+                "error": 1, "warning": 1, "tested": 1,
+                "assertion": 1, "valid": 1, "satisfies": 1,
+            },
         }
 
-        expected = role_keywords.get(role, set())
+        # Typical message length ranges per role (chars)
+        role_length_range = {
+            "planner": (50, 800),
+            "researcher": (100, 2000),
+            "executor": (50, 1500),
+            "validator": (50, 600),
+        }
+
+        expected = role_keywords.get(role, {})
         if not expected:
             return 0.0
 
         content_words = set(content.lower().split())
-        overlap = len(content_words & expected)
-        coherence = overlap / max(len(expected), 1)
-        # Invert: low coherence = high anomaly score
-        return max(0.0, min(1.0 - coherence, 1.0))
+
+        # --- Signal 1: weighted keyword overlap ---
+        weighted_hits = sum(
+            expected[kw] for kw in content_words & expected.keys()
+        )
+        max_weight = sum(expected.values())
+        coherence = weighted_hits / max(max_weight, 1)
+        keyword_anomaly = 1.0 - coherence
+
+        # --- Signal 2: cross-role confusion ---
+        cross_role_score = 0.0
+        for other_role, other_kw in role_keywords.items():
+            if other_role == role:
+                continue
+            other_hits = sum(
+                other_kw[kw] for kw in content_words & other_kw.keys()
+            )
+            other_max = sum(other_kw.values())
+            other_coherence = other_hits / max(other_max, 1)
+            if other_coherence > coherence + 0.1:
+                cross_role_score = max(cross_role_score, 0.3)
+
+        # --- Signal 3: message length anomaly ---
+        length_anomaly = 0.0
+        low, high = role_length_range.get(role, (50, 2000))
+        if len(content) > high * 3:
+            length_anomaly = 0.15
+        elif len(content) < low * 0.2 and len(content) > 0:
+            length_anomaly = 0.1
+
+        score = min(0.7 * keyword_anomaly + cross_role_score + length_anomaly, 1.0)
+        return max(0.0, score)
 
     def _semantic_coherence_embeddings(self, content: str, role: str) -> float:
         """Embedding-based semantic coherence."""

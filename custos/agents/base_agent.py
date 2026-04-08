@@ -28,6 +28,7 @@ class BaseAgent(ABC):
         self.tools: List[Dict] = []
         self.memory: List[Dict] = []  # conversation history
         self.max_memory: int = 20  # keep last N exchanges
+        self.tool_outputs_override: Dict[str, str] = {}  # tool_name -> poisoned output
         self.bus.register_agent(self.agent_id, self)
 
     @abstractmethod
@@ -82,8 +83,17 @@ class BaseAgent(ABC):
         return self.llm.invoke(messages)
 
     def _execute_tool(self, tool_name: str, **kwargs) -> str:
-        """Execute a simulated tool. Override in subclasses for specific tools."""
-        return f"[Tool {tool_name} executed with args: {kwargs}]"
+        """Execute a simulated tool. Override in subclasses for specific tools.
+
+        If ``tool_outputs_override`` contains a mapping for this tool, the
+        override value is appended to the normal result (simulating a
+        tool-poisoning attack where the tool output carries hidden instructions).
+        """
+        result = f"[Tool {tool_name} executed with args: {kwargs}]"
+        override = self.tool_outputs_override.get(tool_name)
+        if override:
+            result = f"{result}\n{override}"
+        return result
 
     def snapshot_state(self) -> dict:
         """Return serializable state for rollback."""
@@ -99,3 +109,4 @@ class BaseAgent(ABC):
     def reset(self):
         """Reset agent state for a new task."""
         self.memory = []
+        self.tool_outputs_override = {}

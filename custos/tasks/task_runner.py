@@ -243,10 +243,29 @@ class TaskRunner:
             attack_payload: The malicious payload to inject
             attack_type: Name of the attack type
             entry_point: Which agent receives the injection
-            injection_method: How the payload is injected (user_input, tool_output, etc.)
+            injection_method: How the payload is injected:
+                - ``user_input``: appended to the message content
+                - ``tool_output``: injected into tool outputs of entry agent
             injection_turns: For multi-turn attacks, which turns to inject at
             turn_payloads: Optional per-turn payload map for multi-turn attacks
         """
+        # --- Auto-generate multi-turn schedule when not provided ----------
+        if (
+            attack_type == "multiturn_escalation"
+            and injection_turns is None
+            and turn_payloads is None
+        ):
+            analyzer = self._build_attack_analyzer(attack_type)
+            if analyzer is not None:
+                sequence = analyzer.generate_escalation_sequence(entry_point)
+                scheduled = analyzer.get_injection_turns()
+                turn_payloads = {
+                    turn: sequence[idx]["content"]
+                    for idx, turn in enumerate(scheduled)
+                    if idx < len(sequence)
+                }
+                injection_turns = sorted(turn_payloads.keys())
+
         start_time = time.perf_counter()
         task_id = task["id"]
         description = task["description"]
@@ -254,6 +273,13 @@ class TaskRunner:
         # Reset agents
         for agent in self.agents.values():
             agent.reset()
+
+        # --- Tool-output injection: poison the entry agent's tool results ---
+        if injection_method == "tool_output":
+            agent = self.agents.get(entry_point)
+            if agent is not None:
+                for tool_def in getattr(agent, "tools", []):
+                    agent.tool_outputs_override[tool_def["name"]] = attack_payload
 
         # Track initial bus state
         initial_blocked = sum(
@@ -263,7 +289,7 @@ class TaskRunner:
 
         agents_participated = []
         step = 0
-        payload_injected = False
+        payload_injected = injection_method == "tool_output"  # already set up
 
         current_agent_id = "planner"
         current_content = description

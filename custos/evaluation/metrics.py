@@ -67,6 +67,34 @@ def compute_detection_metrics(
     }
 
 
+def compute_detection_by_attack_type(
+    attack_results: List[AttackResult],
+) -> Dict[str, Dict[str, float]]:
+    """Compute detection metrics grouped by attack type.
+
+    Returns:
+        {attack_type: {detection_rate, total, detected, avg_propagation_depth}}
+    """
+    from collections import defaultdict
+
+    by_type: Dict[str, List[AttackResult]] = defaultdict(list)
+    for r in attack_results:
+        by_type[r.attack_type].append(r)
+
+    per_type = {}
+    for attack_type, results in sorted(by_type.items()):
+        detected = sum(1 for r in results if r.detected_by_sentinel)
+        depths = [r.agents_infected for r in results]
+        per_type[attack_type] = {
+            "detection_rate": detected / max(len(results), 1),
+            "total": len(results),
+            "detected": detected,
+            "avg_propagation_depth": sum(depths) / max(len(depths), 1),
+            "data_exfiltrated_count": sum(1 for r in results if r.data_exfiltrated),
+        }
+    return per_type
+
+
 def compute_containment_metrics(
     attack_results: List[AttackResult],
 ) -> Dict[str, float]:
